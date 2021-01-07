@@ -57,7 +57,6 @@ public:
 	}data;
 }type;
 
-#include <ArduinoObject.h>
 
 class Packet
 {
