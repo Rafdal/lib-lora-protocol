@@ -4,12 +4,13 @@
 #include <config.h>
 #include <lora/lora.h>
 #include <master/network.h>
+#include <lora/Callbacks.h>
 
 class Master
 {
 private:
 
-    void _registerOnNetwork(packet_t p); // Gestiona la registracion en la red
+    void _registerOnNetwork(Packet p); // Gestiona la registracion en la red
     bool reg_open = true; // true si la registracion esta disponible
 
     uint8_t interval_check_counter=1; // Inicia en 2 porque si (para dar margen)
@@ -17,21 +18,28 @@ public:
     Master() {}
     ~Master() {}
 
+    String devInfo(){
+        return "MASTER     ID: " + String(lora.local_id);
+    }
+
     // General Methods
     void begin();
     void runPerSec();
-    void run();
+    void run(packet_callback_t callback);
+
+    void onCallback(uint8_t id, callback_t callback);
 
     // Button Methods
     void Click();
     void DoubleClick();
     void LongPress();
 
-    // Network Methods
+    // Objects
     Network network;
+    Callbacks callbacks;
 
     // Parameters
-    int8_t interval_check_time = 5; // -1 = Desactivado. (Segundos) Debe ser mayor a 1
+    int8_t interval_check_time = -1; // -1 = Desactivado. (Segundos) Debe ser mayor a 1
 };
 
 
@@ -47,6 +55,7 @@ void Master::begin()
          */
         network.clientStatus.noResponses[i] = -1;
     }
+    Serial.println(F("Master initialized"));
 }
 
 void Master::runPerSec()
@@ -65,13 +74,17 @@ void Master::runPerSec()
     }
 }
 
+void Master :: onCallback(uint8_t id, callback_t callback){
+	callbacks.setCallback(id, callback);
+}
+
+
 // Ejecutar en LOOP no en RTL
-void Master::run()
+void Master::run(packet_callback_t callback = NULL)
 {
     if (lora.available() == 0)
     {
-        packet_t p = lora.read();
-
+        Packet p = lora.read();
         switch (p.type)
         {
         case type.net.id_req:
@@ -82,28 +95,41 @@ void Master::run()
                 }
             }
             break;
+        case type.control.callback:
+            {
+                callbacks.call(p.data[0]);
+            }
         
         default:
+            {
+                if (callback != NULL)
+                {
+                    (*callback)(p);
+                }                
+            }
             break;
         }
     }
-    for (uint8_t i = 0; i < clients.size(); i++)
+    ctrl.run();
+    if (interval_check_time > 1)
     {
-        // Si existe un cliente
-        if(!clients.available(i))
+        for (uint8_t i = 0; i < clients.size(); i++)
         {
-            if (network.clientStatus.state[i] != 0)
+            // Si existe un cliente
+            if(!clients.available(i))
             {
-                DEBUG("setState")
-                packet_t p;
-                p.set(i+3, type.data.setState, network.clientStatus.state[i]);
-                lora.send(p);
-                network.clientStatus.state[i] = 0;
+                if (network.clientStatus.state[i] != 0)
+                {
+                    DEBUG("setState")
+                    Packet p;
+                    p.set(i+3, type.data.setState, network.clientStatus.state[i]);
+                    lora.send(p);
+                    network.clientStatus.state[i] = 0;
+                }
+                
             }
-            
         }
     }
-    
 }
 
 // Nothing
@@ -123,7 +149,7 @@ void Master::LongPress()
 }
 
 // Proceso la solicitud de registro
-void Master::_registerOnNetwork(packet_t p)
+void Master::_registerOnNetwork(Packet p) // !! WIP
 {
     // p.data = { [devType] }
     if (network.available() == -1)
@@ -134,7 +160,7 @@ void Master::_registerOnNetwork(packet_t p)
     {
         uint8_t id_offer = network.available() + 3; // Oferta de ID
 
-        packet_t offer;
+        Packet offer;
         offer.set(p.id, type.net.id_offer, id_offer);
         offer.add(p.data[0]);
 

@@ -23,15 +23,17 @@ const uint8_t DI0 = 16;
 
 #ifndef DEBUG
 #define DEBUG(a)
+#else
+#define DEBUG(a) Serial.println(F(a));
 #endif
 
 #ifdef _HELTEC_H_
     #define LORA_FREQ   915E6
-    #warning "LoRa at 915 MHz"
+    // #warning "LoRa at 915 MHz"
     // #define LoRa Heltec.LoRa // No hace falta
 #else
     #define LORA_FREQ   433E6
-    #warning "LoRa at 433 MHz"
+    // #warning "LoRa at 433 MHz"
     // #define LoRa LoRa // No hace falta
 #endif
 

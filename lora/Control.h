@@ -22,6 +22,9 @@ public:
     #ifndef ESP_H
     uint8_t state_led = 3;
     uint8_t trx_led = 8;
+    #elif defined(_HELTEC_H_)
+    uint8_t trx_led = LED_BUILTIN;
+    uint8_t state_led = 13;
     #else
     uint8_t trx_led = 12;
     uint8_t state_led = 14;
@@ -67,6 +70,8 @@ void Control :: pFE_check()
 void Control :: begin()
 {
     pinMode(state_led, OUTPUT);
+    Serial.print(F("LoRa initialized at "));
+    Serial.println(LORA_FREQ);
     #ifndef _HELTEC_H_
     LoRa.setPins(NSS, RST, DI0);
 	if (!LoRa.begin(LORA_FREQ))

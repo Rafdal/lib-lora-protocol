@@ -19,8 +19,8 @@ public:
 			pong,
 			ok,
 			error,
-
-			data_request
+			data_request,
+			callback,
 		};
 	}control;	
 
@@ -28,7 +28,7 @@ public:
 	{
 	public:
 		enum{ // Network packets IMPLEMENTAR ID DE RED para evitar colisiones entre redes
-			id_req = 32, // ! Solicitud de registro en la red. DATA = [devType]
+			id_req = 50, // ! Solicitud de registro en la red. DATA = [devType]
 			id_offer, // @ Ofrece un ID. DATA = [ID, devType]
 			network_full, // @ Avisa que no queda espacio en la red
 			id_confirm, // ! Confirma el ID asignado. DATA = [devType]
@@ -40,7 +40,7 @@ public:
 	{
 	public:
 		enum{ // 
-			get = 100,
+			get = 64,
 			post,
 			
 		};
@@ -50,13 +50,14 @@ public:
 	{
 	public:
 		enum{ // 
-			setState = 128, // Actualiza el estado del Slave. DATA = [state, ...]
+			setState = 100, // Actualiza el estado del Slave. DATA = [state, ...]
+			string,
 		};
 	}data;
 }type;
 
 
-class packet_t
+class Packet
 {
 private:
 	void _error_();
@@ -67,8 +68,8 @@ public:
 	uint8_t type;
 	uint8_t size;
 	uint8_t data[BUFFER_SIZE];
-	packet_t();
-	~packet_t(){}
+	Packet();
+	~Packet(){}
 
 	void crypt(char Pass[], uint8_t Pass_Size, uint8_t Key);
 	void crypt(String Pass, uint8_t Key);
@@ -76,8 +77,11 @@ public:
 	void set(uint8_t _id, uint8_t _type, uint8_t singleData); // Setea ID destino y Type
 	void add(uint8_t _byte); // Agrega un byte
 
+	void callback(uint8_t dev_id, uint8_t call_id); // ( dev_id, call_id )
+
 	void parse(String str);
 	void parse(uint8_t _data[], uint8_t size);
+	
 	#ifdef ARDUINO_OBJECT
 	void parse(ArduinoObject obj);
 	ArduinoObject toArduinoObject();
@@ -87,7 +91,7 @@ public:
 	String toStr();
 };
 
-packet_t::packet_t()
+Packet::Packet()
 {
 	size = 0;
 	type = 0;
@@ -95,12 +99,12 @@ packet_t::packet_t()
 }
 
 // Mensaje de parse error
-void packet_t :: _error_()
+void Packet :: _error_()
 {
 	Serial.println(F("[Error] Parse fail "));
 }
 
-void packet_t::crypt(char Pass[], uint8_t Pass_Size, uint8_t Key = 0)
+void Packet::crypt(char Pass[], uint8_t Pass_Size, uint8_t Key = 0)
 {
 	Serial.print(F("pass_size: ")); 
 	Serial.println(Pass_Size);
@@ -115,7 +119,7 @@ void packet_t::crypt(char Pass[], uint8_t Pass_Size, uint8_t Key = 0)
     }
 }
 
-void packet_t::crypt(String Pass, uint8_t Key = 0)
+void Packet::crypt(String Pass, uint8_t Key = 0)
 {
 	uint8_t size = Pass.length() + 1;
 	char c_pass[size];
@@ -124,7 +128,7 @@ void packet_t::crypt(String Pass, uint8_t Key = 0)
 }
 
 // Setea ( ID , Type , Data )
-void packet_t::set(uint8_t _id, uint8_t _type, uint8_t singleData = 0)
+void Packet::set(uint8_t _id, uint8_t _type, uint8_t singleData = 0)
 {
 	id = _id;
 	type = _type;
@@ -136,13 +140,20 @@ void packet_t::set(uint8_t _id, uint8_t _type, uint8_t singleData = 0)
 }
 
 // Agrega un byte al paquete de datos
-void packet_t::add(uint8_t _byte) 
+void Packet::add(uint8_t _byte) 
 {
 	data[size]= _byte;
 	size++;
 }
 
-void packet_t::parse(String str)
+void Packet::callback(uint8_t dev_id, uint8_t call_id){
+	id = dev_id;
+	type = _ptype::_control::callback;
+	size = 1;
+	data[0] = call_id;
+}
+
+void Packet::parse(String str)
 {
 	if (str.length() <= BUFFER_SIZE)
 	{
@@ -155,7 +166,7 @@ void packet_t::parse(String str)
 }
 
 // Meter array de bytes en el Data del paquete
-void packet_t::parse(uint8_t _data[], uint8_t _size)
+void Packet::parse(uint8_t _data[], uint8_t _size)
 {
 	if (size <= BUFFER_SIZE)
 	{
@@ -168,7 +179,7 @@ void packet_t::parse(uint8_t _data[], uint8_t _size)
 }
 
 #ifdef ARDUINO_OBJECT
-void packet_t::parse(ArduinoObject obj)
+void Packet::parse(ArduinoObject obj)
 {
 	if (obj.length() <= BUFFER_SIZE)
 	{
@@ -184,7 +195,7 @@ void packet_t::parse(ArduinoObject obj)
 	}
 }
 
-ArduinoObject packet_t::toArduinoObject()
+ArduinoObject Packet::toArduinoObject()
 {
 	ArduinoObject out(size, data);
 	return out;
@@ -193,7 +204,7 @@ ArduinoObject packet_t::toArduinoObject()
 #endif
 
 // Mostrar informacion del paquete
-void packet_t::print(unsigned char mode = DEC)
+void Packet::print(unsigned char mode = DEC)
 {
 	char buf[30];
 	sprintf(buf, "{id:%u, type:%u, size:%u}", id, type, size);
@@ -213,7 +224,7 @@ void packet_t::print(unsigned char mode = DEC)
 }
 
 // return Data as String object 
-String packet_t::toStr()
+String Packet::toStr()
 {
 	String out;
 	out.reserve(16);

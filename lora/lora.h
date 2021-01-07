@@ -22,12 +22,14 @@ FastCRC16 CRC16;
 
 #include "Packet.h"
 
+#define Print(a) Serial.println(F(a));
+
 // #define DEBUG_PRINT(string) (Serial.println(string))
 
 class Lora
 {
 private:
-	packet_t Pack; // buffer de paquete
+	Packet Pack; // buffer de paquete
 
 	void _check_init_();
 public:
@@ -40,14 +42,14 @@ public:
 	void runPerSec();
 
 	uint8_t available();
-	packet_t read();
+	Packet read();
 
 	// Crea un paquete ping
-	packet_t ping(uint8_t id); 
+	Packet ping(uint8_t id); 
 	
-	void send(packet_t p);
+	void send(Packet p);
 	void send(uint8_t id, uint8_t type);
-	bool trySend(packet_t p, uint8_t times, uint16_t interval, uint8_t expected_type, uint8_t error_type);
+	bool trySend(Packet p, uint8_t times, uint16_t interval, uint8_t expected_type, uint8_t error_type);
 	void echo();
 	void echof();
 
@@ -93,9 +95,9 @@ void Lora :: runPerSec()
 }
 
 // Crea un paquete ping
-packet_t Lora :: ping(uint8_t id)
+Packet Lora :: ping(uint8_t id)
 {
-	packet_t p;
+	Packet p;
 	p.set(id, type.control.ping);
 	return p;
 }
@@ -113,7 +115,7 @@ void Lora :: echof()
 }
 
 // Envia un paquete con datos
-void Lora :: send(packet_t p)
+void Lora :: send(Packet p)
 {
 	if (local_id == p.id)
 	{
@@ -134,6 +136,7 @@ void Lora :: send(packet_t p)
 	LoRa.available();
 	// ctrl.wait();
 	#ifdef LORA_PRINT_DEBUG
+	Serial.println(F("Sending:"));
 	p.print();
 	#endif
 
@@ -191,19 +194,22 @@ void Lora :: send(uint8_t id, uint8_t type)
 	for (uint8_t i = 0; i < 3; i++)
 		LoRa.write(packet[i]);
 
-	// #DEBUG ONLY
-		/* for (uint8_t i = 0; i < p.size+4; i++)
-		{
-			Serial.print(packet[i]);
-			Serial.print(',');
-		} Serial.println(); */
+
+	#ifdef LORA_PRINT_DEBUG
+		Serial.println(F("Sending:"));
+	for (uint8_t i = 0; i < 3; i++)
+	{
+		Serial.print(packet[i]);
+		Serial.print(',');
+	} Serial.println();
+	#endif
 
 	LoRa.endPacket(true);
 	digitalWrite(ctrl.trx_led, LOW);
 }
 
 // Envia un paquete que espera una respuesta Y/N
-bool Lora::trySend(packet_t p, uint8_t times, uint16_t interval, uint8_t expected_type, uint8_t error_type = type.control.error)
+bool Lora::trySend(Packet p, uint8_t times, uint16_t interval, uint8_t expected_type, uint8_t error_type = type.control.error)
 {
 	for (uint8_t time = 0; time < times; time++)
 	{
@@ -214,7 +220,7 @@ bool Lora::trySend(packet_t p, uint8_t times, uint16_t interval, uint8_t expecte
 			// ctrl.run();
 			if (available() == 0)
 			{
-				packet_t response = read();
+				Packet response = read();
 				if (response.type == expected_type)
 				{
 					return true;
@@ -243,6 +249,9 @@ uint8_t Lora :: available()
 	{
 		if (LoRa.available())
 		{
+			#ifdef LORA_PRINT_DEBUG
+				Serial.println(F("Received:"));
+			#endif
 			uint16_t RemoteCRC = (LoRa.read() << 8) | LoRa.read();
 
 			uint8_t size = 0;
@@ -259,15 +268,18 @@ uint8_t Lora :: available()
 			uint16_t Local_CRC = CRC16.kermit(packet, size);
 			if (Local_CRC == RemoteCRC)
 			{
-				if(packet[0] == local_id)
+				if(packet[0] == local_id || packet[0] == 2)
 				{
 					if (size == 3) 
 					{
 						digitalWrite(ctrl.trx_led, HIGH);
-						packet_t p;
+						Packet p;
 						p.id = packet[1];
 						p.type = packet[2];
 						Pack = p;
+						#ifdef LORA_PRINT_DEBUG
+							p.print();
+						#endif
 						return 0; // OK
 					}
 					else if(buffer_size+4 >= size)
@@ -275,7 +287,7 @@ uint8_t Lora :: available()
 						if(packet[3]+4 == size)
 						{
 							digitalWrite(ctrl.trx_led, HIGH);
-							packet_t p;
+							Packet p;
 							p.id = packet[1];
 							p.type = packet[2];
 							p.size = packet[3];
@@ -284,6 +296,9 @@ uint8_t Lora :: available()
 								p.data[i] = packet[4+i];
 							
 							Pack = p;
+							#ifdef LORA_PRINT_DEBUG
+								p.print();
+							#endif
 							return 0; // OK
 						}
 						return 5; // Size error
@@ -299,10 +314,10 @@ uint8_t Lora :: available()
 }
 
 // Devuelve el paquete en buffer
-packet_t Lora :: read()
+Packet Lora :: read()
 {
 	digitalWrite(ctrl.trx_led, LOW);
-	packet_t pout = Pack;
+	Packet pout = Pack;
 	Pack.id = 255;
 	Pack.type = 0;
 	return pout;
