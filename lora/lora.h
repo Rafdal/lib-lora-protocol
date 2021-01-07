@@ -1,13 +1,19 @@
 #ifndef LORA_BASICS_H
 #define LORA_BASICS_H
 
+#ifndef _HELTEC_H_
 #include <SPI.h>
 #include <LoRa.h>
-
-#ifndef ESP_H
-#include <util/crc16.h>
-#include <FastCRC.h>
+#else
+#include <lora/LoRa.h>
 #endif
+
+#ifdef _HELTEC_H_
+#include <crc16.h>
+#else
+#include <util/crc16.h>
+#endif
+#include <FastCRC.h>
 FastCRC16 CRC16;
 
 #include <config.h>
@@ -120,7 +126,12 @@ void Lora :: send(packet_t p)
 		return;
 	}
 	digitalWrite(ctrl.trx_led, HIGH);
+	#ifndef _HELTEC_H_
 	while (LoRa.isTransmitting()){;} // ! TEST
+	#else
+
+	#endif
+	LoRa.available();
 	// ctrl.wait();
 	#ifdef LORA_PRINT_DEBUG
 	p.print();
@@ -135,7 +146,6 @@ void Lora :: send(packet_t p)
 	packet[3] = p.size;
 	for (uint8_t i = 0; i < p.size; i++)
 		packet[4 + i] = p.data[i];
-	
 	uint16_t crc = CRC16.kermit(packet, 4 + p.size);
 
 	ctrl.wait();
@@ -155,7 +165,7 @@ void Lora :: send(packet_t p)
 		Serial.print(',');
 	} Serial.println(); */
 
-	LoRa.endPacket(true);
+	LoRa.endPacket();
 	digitalWrite(ctrl.trx_led, LOW);
 }
 

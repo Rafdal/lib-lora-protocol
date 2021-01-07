@@ -7,16 +7,6 @@ typedef void (*void_event_t)(void);
 // #define DEBUG_PRINT(string) (Serial.println(string))
 // #endif
 
-#ifndef ESP_H
-const uint8_t NSS = 10;
-const uint8_t RST = 9;
-const uint8_t DI0 = 2;
-#else
-const uint8_t NSS = 5;
-const uint8_t RST = 17;
-const uint8_t DI0 = 16;
-#endif
-
 
 class Control
 {
@@ -41,7 +31,11 @@ public:
     bool led_fast_blinking = false; // Parpadear 0.1s en vez de 1s
     bool blink = true; // Parpadeo activado
 
+    #ifndef _HELTEC_H_
     void pFE_check();
+    #else
+    #define pFE_check()
+    #endif
 
     void begin();
     void start_lora();
@@ -55,7 +49,7 @@ public:
     void wait();
 }ctrl;
 
-
+#ifndef _HELTEC_H_
 // Chequea si quedo choteado el LoRa
 void Control :: pFE_check()
 {
@@ -67,14 +61,15 @@ void Control :: pFE_check()
 		begin();
 	}
 }
+#endif
 
 // INICIA LoRa
 void Control :: begin()
 {
     pinMode(state_led, OUTPUT);
-
+    #ifndef _HELTEC_H_
     LoRa.setPins(NSS, RST, DI0);
-	if (!LoRa.begin(433E6))
+	if (!LoRa.begin(LORA_FREQ))
 	{
 		Serial.println(F("[Error] Init failed. Check your connections."));
 		// asm("jmp 0x0000");
@@ -85,6 +80,11 @@ void Control :: begin()
         started = true;
         // Serial.println(F("Lora Started")); 
     }
+    #else
+    started = true;
+    // SPI.begin(SCK,MISO,MOSI,SS);
+    // LoRa.setPins(SS,RST_LoRa,DIO0)
+    #endif
 }
 
 // Chequea si esta iniciado, en caso que no, lo inicia
@@ -162,9 +162,14 @@ void Control :: wait()
     {
         while (LoRa.beginPacket() == 0)
         {
+            #ifndef _HELTEC_H_
             if((LoRa.packetFrequencyError() > 2800 && LoRa.packetFrequencyError() < 2900) || (millis()-lastSend) >= timeout*2 )
+            #else
+            if((millis()-lastSend) >= timeout*2 )
+            #endif
             {
-                delay(50);
+                Serial.println(F("LORA RESET from ctrl.wait()"));
+                delay(500);
                 #ifndef ESP_H
                 asm("jmp 0x0000");
                 #else

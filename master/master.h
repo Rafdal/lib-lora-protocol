@@ -1,6 +1,7 @@
 #ifndef LORA_MASTER_H
 #define LORA_MASTER_H
 
+#include <config.h>
 #include <lora/lora.h>
 #include <master/network.h>
 
