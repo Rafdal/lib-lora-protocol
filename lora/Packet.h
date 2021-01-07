@@ -1,7 +1,7 @@
 #ifndef PACKET_H
 #define PACKET_H
 
-#define BUFFER_SIZE 20
+#define BUFFER_SIZE 32
 
 #define ASCII 255
 
@@ -52,10 +52,12 @@ public:
 		enum{ // 
 			setState = 100, // Actualiza el estado del Slave. DATA = [state, ...]
 			string,
+			arduino_object,
 		};
 	}data;
 }type;
 
+#include <ArduinoObject.h>
 
 class Packet
 {
@@ -79,11 +81,11 @@ public:
 
 	void callback(uint8_t dev_id, uint8_t call_id); // ( dev_id, call_id )
 
-	void parse(String str);
+	void string(String str);
 	void parse(uint8_t _data[], uint8_t size);
 	
 	#ifdef ARDUINO_OBJECT
-	void parse(ArduinoObject obj);
+	void parse(ArduinoObject* obj);
 	ArduinoObject toArduinoObject();
 	#endif
 
@@ -153,13 +155,15 @@ void Packet::callback(uint8_t dev_id, uint8_t call_id){
 	data[0] = call_id;
 }
 
-void Packet::parse(String str)
+void Packet::string(String str)
 {
 	if (str.length() <= BUFFER_SIZE)
 	{
 		size = str.length();
 		for (uint8_t i = 0; i < size; i++)
-			data[i] = (uint8_t)((char)str[i]);
+			{data[i] = (uint8_t)((char)str[i]);}
+
+		type = _ptype::_data::string;
 	}
 	else
 		_error_();
@@ -179,14 +183,15 @@ void Packet::parse(uint8_t _data[], uint8_t _size)
 }
 
 #ifdef ARDUINO_OBJECT
-void Packet::parse(ArduinoObject obj)
+void Packet::parse(ArduinoObject *obj)
 {
-	if (obj.length() <= BUFFER_SIZE)
+	if (obj->size() <= BUFFER_SIZE)
 	{
-		size = obj.length();
+		type = _ptype::_data::arduino_object;
+		size = obj->size();
 		for (uint8_t i = 0; i < size; i++)
 		{
-			data[i] = obj.data(i);
+			data[i] = obj->data(i);
 		}
 	}
 	else
@@ -197,7 +202,7 @@ void Packet::parse(ArduinoObject obj)
 
 ArduinoObject Packet::toArduinoObject()
 {
-	ArduinoObject out(size, data);
+	ArduinoObject out = ArduinoObject(data, size);
 	return out;
 }
 
