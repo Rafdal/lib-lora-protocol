@@ -75,10 +75,11 @@ public:
 	void crypt(char Pass[], uint8_t Pass_Size, uint8_t Key);
 	void crypt(String Pass, uint8_t Key);
 
+	void to(uint8_t _id); // Setea destino
 	void set(uint8_t _id, uint8_t _type, uint8_t singleData); // Setea ID destino y Type
 	void add(uint8_t _byte); // Agrega un byte
 
-	void callback(uint8_t dev_id, uint8_t call_id); // ( dev_id, call_id )
+	void callback(uint8_t call_id); // ( dev_id, call_id )
 
 	void string(String str);
 	void parse(uint8_t _data[], uint8_t size);
@@ -128,6 +129,12 @@ void Packet::crypt(String Pass, uint8_t Key = 0)
 	crypt(c_pass, size , Key);
 }
 
+// Setea destino
+void Packet::to(uint8_t _id)
+{
+	id = _id;
+}
+
 // Setea ( ID , Type , Data )
 void Packet::set(uint8_t _id, uint8_t _type, uint8_t singleData = 0)
 {
@@ -147,7 +154,7 @@ void Packet::add(uint8_t _byte)
 	size++;
 }
 
-void Packet::callback(uint8_t dev_id, uint8_t call_id){
+void Packet::callback(uint8_t call_id){
 	id = dev_id;
 	type = _ptype::_control::callback;
 	size = 1;
